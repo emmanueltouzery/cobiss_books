@@ -87,6 +87,7 @@ function bookToString(book: BorrowedBook) {
 }
 
 (async () => {
+    console.log(new Date());
     const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
         .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
     books.map(bookToString).map(console.info);
