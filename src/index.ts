@@ -46,7 +46,7 @@ async function fetchBooks(user: CobissUserInfo): Promise<BorrowedBook[]> {
     await page.type('input[placeholder="acronym, title, department, city..."]', user.library);
     await page.waitForSelector('div[data-value="sikvrh"]')
     await page.focus('div[data-value="sikvrh"]')
-await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
 
     await page.type('input#libMemberID', user.username)
     await page.type('input#password1', user.password)
@@ -55,7 +55,7 @@ await page.keyboard.press('Tab');
 
     await page.waitForSelector("table#myLibs")
 
-    
+
     const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('table#myLibs tr td:nth-of-type(5) a')!.innerHTML));
     console.log(`${user.name} borrowed ${borrowedCount}`)
 
