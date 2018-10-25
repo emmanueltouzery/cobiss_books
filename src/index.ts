@@ -5,14 +5,15 @@ import _config from "../config.json";
 import puppeteer from 'puppeteer';
 import { Vector } from "prelude.ts";
 
+const DEBUG = false;
+const WARN_IF_MUST_RETURN_DAYS = 7;
+
 function requireNotNull<T>(a: T|null): T {
     if (a === null) {
         throw "unexpected null!";
     }
     return a;
 }
-
-const DEBUG = false;
 
 interface CobissUserInfo {library:string, username:string, password:string, name:string};
 
@@ -24,11 +25,9 @@ interface Config {
 }
 const config: Config = _config;
 
-interface Book {}
-
-function sendEmail(booksToReturn: Book[]) {
+function sendEmail(booksToReturn: Vector<BorrowedBook>) {
     const transport = nodeMailer.createTransport(config.smtp);
-    transport.sendMail({...config.mailInfo, text: `hello world`});
+    transport.sendMail({...config.mailInfo, text: `Must return ${booksToReturn.map(bookToString).mkString("\n")}`});
 }
 
 interface BorrowedBook {
@@ -53,7 +52,6 @@ await page.keyboard.press('Tab');
     await page.type('input#password1', user.password)
 
     await page.click('input#wp-submit1');
-
 
     await page.waitForSelector("table#myLibs")
 
@@ -84,12 +82,17 @@ await page.keyboard.press('Tab');
     return [{borrowedBy: user.name, returnDate, bookTitle}];
 }
 
-function printBook(book: BorrowedBook) {
-    console.info(`[${book.borrowedBy}] ${book.returnDate} ${book.bookTitle}`);
+function bookToString(book: BorrowedBook) {
+    return `[${book.borrowedBy}] ${book.returnDate.toLocaleDateString()} ${book.bookTitle}`;
 }
 
 (async () => {
     const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
         .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
-    books.forEach(printBook);
+    books.map(bookToString).map(console.info);
+    const booksToReturn = books.filter(b => (b.returnDate.getTime() - new Date().getTime() <= WARN_IF_MUST_RETURN_DAYS*24*3600*1000));
+    if (booksToReturn.length() > 0) {
+        console.log("oops must return soon!")
+        sendEmail(booksToReturn);
+    }
 })();
