@@ -25,9 +25,12 @@ interface Config {
 }
 const config: Config = _config;
 
-function sendEmail(booksToReturn: Vector<BorrowedBook>) {
+function sendEmail(booksToReturn: Vector<BorrowedBook>, allBooks: Vector<BorrowedBook>) {
     const transport = nodeMailer.createTransport(config.smtp);
-    transport.sendMail({...config.mailInfo, text: `Must return ${booksToReturn.map(bookToString).mkString("\n")}`});
+    transport.sendMail(
+        {...config.mailInfo, text:
+         `Must return:\n${booksToReturn.map(bookToString).mkString("\n")}.\n` +
+         `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`});
 }
 
 interface BorrowedBook {
@@ -94,6 +97,6 @@ function bookToString(book: BorrowedBook) {
     const booksToReturn = books.filter(b => (b.returnDate.getTime() - new Date().getTime() <= WARN_IF_MUST_RETURN_DAYS*24*3600*1000));
     if (booksToReturn.length() > 0) {
         console.log("oops must return soon!")
-        sendEmail(booksToReturn);
+        sendEmail(booksToReturn, books);
     }
 })();
