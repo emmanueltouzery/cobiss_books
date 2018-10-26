@@ -47,8 +47,8 @@ async function fetchBooks(user: CobissUserInfo): Promise<BorrowedBook[]> {
     const page = await browser.newPage();
     await page.goto('https://opac.si.cobiss.net/opac7/user/login/aai/cobiss');
     await page.type('input[placeholder="acronym, title, department, city..."]', user.library);
-    await page.waitForSelector('div[data-value="sikvrh"]')
-    await page.focus('div[data-value="sikvrh"]')
+    await page.waitForSelector(`div[data-value="${user.library.toLowerCase()}"]`)
+    await page.focus(`div[data-value="${user.library.toLowerCase()}"]`)
     await page.keyboard.press('Tab');
 
     await page.type('input#libMemberID', user.username)
