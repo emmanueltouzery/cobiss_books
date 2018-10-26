@@ -25,12 +25,15 @@ interface Config {
 }
 const config: Config = _config;
 
-function sendEmail(booksToReturn: Vector<BorrowedBook>, allBooks: Vector<BorrowedBook>) {
+function sendEmailWithText(text: string) {
     const transport = nodeMailer.createTransport(config.smtp);
     transport.sendMail(
-        {...config.mailInfo, text:
-         `Must return:\n${booksToReturn.map(bookToString).mkString("\n")}.\n` +
-         `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`});
+        {...config.mailInfo, text});
+}
+
+function sendEmail(booksToReturn: Vector<BorrowedBook>, allBooks: Vector<BorrowedBook>) {
+    sendEmailWithText(`Must return:\n${booksToReturn.map(bookToString).mkString("\n")}.\n` +
+         `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`);
 }
 
 interface BorrowedBook {
@@ -90,6 +93,7 @@ function bookToString(book: BorrowedBook) {
 }
 
 (async () => {
+    try {
     console.log(new Date());
     const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
         .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
@@ -98,5 +102,8 @@ function bookToString(book: BorrowedBook) {
     if (booksToReturn.length() > 0) {
         console.log("oops must return soon!")
         sendEmail(booksToReturn, books);
+    }
+    } catch (ex) {
+        sendEmailWithText("Error: " + ex);
     }
 })();
