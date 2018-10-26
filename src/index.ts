@@ -94,15 +94,15 @@ function bookToString(book: BorrowedBook) {
 
 (async () => {
     try {
-    console.log(new Date());
-    const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
-        .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
-    books.map(bookToString).map(console.info);
-    const booksToReturn = books.filter(b => (b.returnDate.getTime() - new Date().getTime() <= WARN_IF_MUST_RETURN_DAYS*24*3600*1000));
-    if (booksToReturn.length() > 0) {
-        console.log("oops must return soon!")
-        sendEmail(booksToReturn, books);
-    }
+        console.log(new Date());
+        const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
+            .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
+        books.map(bookToString).map(console.info);
+        const booksToReturn = books.filter(b => (b.returnDate.getTime() - new Date().getTime() <= WARN_IF_MUST_RETURN_DAYS*24*3600*1000));
+        if (booksToReturn.length() > 0) {
+            console.log("oops must return soon!")
+            sendEmail(booksToReturn, books);
+        }
     } catch (ex) {
         sendEmailWithText("Error: " + ex);
     }
