@@ -33,7 +33,7 @@ function sendEmailWithText(text: string) {
 
 function sendEmail(booksToReturn: Vector<BorrowedBook>, allBooks: Vector<BorrowedBook>) {
     sendEmailWithText(`Must return:\n${booksToReturn.map(bookToString).mkString("\n")}.\n` +
-         `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`);
+                      `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`);
 }
 
 interface BorrowedBook {
@@ -47,45 +47,45 @@ async function fetchBooks(user: CobissUserInfo): Promise<BorrowedBook[]> {
     const browser = DEBUG ?
         await puppeteer.launch({headless: false}) :
         await puppeteer.launch({args: ['--lang=en-US,en']});
-    const page = await browser.newPage();
-    await page.goto('https://opac.si.cobiss.net/opac7/user/login/aai/cobiss');
-    await page.type('input[placeholder="acronym, title, department, city..."]', user.library);
-    await page.waitForSelector(`div[data-value="${user.library.toLowerCase()}"]`)
-    await page.focus(`div[data-value="${user.library.toLowerCase()}"]`)
-    await page.keyboard.press('Tab');
+    try {
+        const page = await browser.newPage();
+        await page.goto('https://opac.si.cobiss.net/opac7/user/login/aai/cobiss');
+        await page.type('input[placeholder="acronym, title, department, city..."]', user.library);
+        await page.waitForSelector(`div[data-value="${user.library.toLowerCase()}"]`)
+        await page.focus(`div[data-value="${user.library.toLowerCase()}"]`)
+        await page.keyboard.press('Tab');
 
-    await page.type('input#libMemberID', user.username)
-    await page.type('input#password1', user.password)
+        await page.type('input#libMemberID', user.username)
+        await page.type('input#password1', user.password)
 
-    await page.click('input#wp-submit1');
+        await page.click('input#wp-submit1');
 
-    await page.waitForSelector("table#myLibs")
+        await page.waitForSelector("table#myLibs")
 
 
-    const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('table#myLibs tr td:nth-of-type(5) a')!.innerHTML));
-    console.log(`${user.name} borrowed ${borrowedCount}`)
+        const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('table#myLibs tr td:nth-of-type(5) a')!.innerHTML));
+        console.log(`${user.name} borrowed ${borrowedCount}`)
 
-    if (borrowedCount === 0) {
+        if (borrowedCount === 0) {
+            return [];
+        }
+        await page.click("table#myLibs td a")
+
+        await page.waitForSelector("tbody#extLoanStuleBody");
+        const rows = await page.evaluate(() => document.querySelector('tbody#extLoanStuleBody')!.innerHTML);
+
+        const rowNodes = cheerio.load("<table>" + rows + "</table>");
+        const returnDateStr = rowNodes('tr td:nth-of-type(2)').html()!.trim().substring(0,10);
+        const returnDate = new Date(parseInt(returnDateStr.substring(6,10)),
+                                    parseInt(returnDateStr.substring(3,5))-1,
+                                    parseInt(returnDateStr.substring(0,2)));
+        const bookTitle = requireNotNull(rowNodes('tr td:nth-of-type(3)').html());
+        return [{borrowedBy: user.name, returnDate, bookTitle}];
+    } finally {
         if (!DEBUG) {
             await browser.close();
         }
-        return [];
     }
-    await page.click("table#myLibs td a")
-
-    await page.waitForSelector("tbody#extLoanStuleBody");
-    const rows = await page.evaluate(() => document.querySelector('tbody#extLoanStuleBody')!.innerHTML);
-
-    const rowNodes = cheerio.load("<table>" + rows + "</table>");
-    const returnDateStr = rowNodes('tr td:nth-of-type(2)').html()!.trim().substring(0,10);
-    const returnDate = new Date(parseInt(returnDateStr.substring(6,10)),
-                                parseInt(returnDateStr.substring(3,5))-1,
-                                parseInt(returnDateStr.substring(0,2)));
-    const bookTitle = requireNotNull(rowNodes('tr td:nth-of-type(3)').html());
-    if (!DEBUG) {
-        await browser.close();
-    }
-    return [{borrowedBy: user.name, returnDate, bookTitle}];
 }
 
 function bookToString(book: BorrowedBook) {
