@@ -54,7 +54,6 @@ async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
 
         await page.waitForSelector("table#myLibs")
 
-
         const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('table#myLibs tr td:nth-of-type(5) a')!.innerHTML));
         console.log(`${user.name} borrowed ${borrowedCount}`)
 
