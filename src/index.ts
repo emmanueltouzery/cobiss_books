@@ -1,5 +1,4 @@
 import * as nodeMailer from 'nodemailer';
-import cheerio from 'cheerio';
 
 import _config from "../config.json";
 import puppeteer from 'puppeteer';
@@ -7,13 +6,6 @@ import { Vector } from "prelude.ts";
 
 const DEBUG = false;
 const WARN_IF_MUST_RETURN_DAYS = 7;
-
-function requireNotNull<T>(a: T|null): T {
-    if (a === null) {
-        throw "unexpected null!";
-    }
-    return a;
-}
 
 interface CobissUserInfo {library:string, username:string, password:string, name:string};
 
@@ -42,7 +34,7 @@ interface BorrowedBook {
     bookTitle: string;
 }
 
-async function fetchBooks(user: CobissUserInfo): Promise<BorrowedBook[]> {
+async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
     console.log(`Fetching for ${user.name}`);
     const browser = DEBUG ?
         await puppeteer.launch({headless: false}) :
@@ -67,20 +59,27 @@ async function fetchBooks(user: CobissUserInfo): Promise<BorrowedBook[]> {
         console.log(`${user.name} borrowed ${borrowedCount}`)
 
         if (borrowedCount === 0) {
-            return [];
+            return Vector.empty();
         }
         await page.click("table#myLibs td a")
 
         await page.waitForSelector("tbody#extLoanStuleBody");
-        const rows = await page.evaluate(() => document.querySelector('tbody#extLoanStuleBody')!.innerHTML);
+        const returnDateStrs: string[] =
+            await page.evaluate(() => [...document.querySelectorAll('tbody#extLoanStuleBody tr td:nth-of-type(2)')]
+                                .map(elem => elem.innerHTML.trim().substring(0,10)));
 
-        const rowNodes = cheerio.load("<table>" + rows + "</table>");
-        const returnDateStr = rowNodes('tr td:nth-of-type(2)').html()!.trim().substring(0,10);
-        const returnDate = new Date(parseInt(returnDateStr.substring(6,10)),
-                                    parseInt(returnDateStr.substring(3,5))-1,
-                                    parseInt(returnDateStr.substring(0,2)));
-        const bookTitle = requireNotNull(rowNodes('tr td:nth-of-type(3)').html());
-        return [{borrowedBy: user.name, returnDate, bookTitle}];
+        const returnDates =
+            Vector.ofIterable(returnDateStrs)
+            .map(returnDateStr => new Date(
+                parseInt(returnDateStr.substring(6,10)),
+                parseInt(returnDateStr.substring(3,5))-1,
+                parseInt(returnDateStr.substring(0,2))));
+
+        const bookTitles: string[] =
+            await page.evaluate(() => [...document.querySelectorAll('tbody#extLoanStuleBody tr td:nth-of-type(3)')]
+                                .map(elem => elem.innerHTML.trim()));
+        return returnDates.zip(bookTitles)
+            .map(([returnDate,bookTitle]) => ({borrowedBy: user.name, returnDate, bookTitle}));
     } finally {
         if (!DEBUG) {
             await browser.close();
