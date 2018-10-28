@@ -103,5 +103,6 @@ function bookToString(book: BorrowedBook) {
         }
     } catch (ex) {
         sendEmailWithText("Error: " + ex);
+        console.error(ex);
     }
 })();
