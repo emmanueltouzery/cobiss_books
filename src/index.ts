@@ -24,8 +24,13 @@ function sendEmailWithText(text: string) {
 }
 
 function sendEmail(booksToReturn: Vector<BorrowedBook>, allBooks: Vector<BorrowedBook>) {
-    sendEmailWithText(`Must return:\n${booksToReturn.map(bookToString).mkString("\n")}.\n` +
-                      `\nAll books:\n${allBooks.map(bookToString).mkString("\n")}`);
+    const formatBookList = (list:Vector<BorrowedBook>) => list
+        .sortOn(b=>b.returnDate.getTime())
+        .map(bookToString)
+        .mkString("\n");
+    
+    sendEmailWithText(`Must return:\n${formatBookList(booksToReturn)}.\n` +
+                      `\nAll books:\n${formatBookList(allBooks)}`);
 }
 
 interface BorrowedBook {
