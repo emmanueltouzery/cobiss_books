@@ -2,7 +2,7 @@ import * as nodeMailer from 'nodemailer';
 
 import _config from "../config.json";
 import puppeteer from 'puppeteer';
-import { Vector } from "prelude.ts";
+import { Vector } from "prelude-ts";
 
 const DEBUG = false;
 const WARN_IF_MUST_RETURN_DAYS = 7;
@@ -37,6 +37,7 @@ interface BorrowedBook {
     borrowedBy: string;
     returnDate: Date;
     bookTitle: string;
+    canProlong: boolean;
 }
 
 async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
@@ -68,6 +69,11 @@ async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
         await page.click("table#myLibs td a")
 
         await page.waitForSelector("tbody#extLoanStuleBody");
+
+        const canProlongInfos: boolean[] =
+            await page.evaluate(() => [...document.querySelectorAll('tbody#extLoanStuleBody tr td:nth-of-type(1)')]
+                                .map(elem => elem.querySelector('input') !== null));
+
         const returnDateStrs: string[] =
             await page.evaluate(() => [...document.querySelectorAll('tbody#extLoanStuleBody tr td:nth-of-type(2)')]
                                 .map(elem => elem.innerHTML.trim().substring(0,10)));
@@ -82,8 +88,10 @@ async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
         const bookTitles: string[] =
             await page.evaluate(() => [...document.querySelectorAll('tbody#extLoanStuleBody tr td:nth-of-type(3)')]
                                 .map(elem => elem.innerHTML.trim()));
-        return returnDates.zip(bookTitles)
-            .map(([returnDate,bookTitle]) => ({borrowedBy: user.name, returnDate, bookTitle}));
+        return Vector.zip(returnDates, bookTitles, canProlongInfos)
+            .map(([returnDate, bookTitle, canProlong]) => ({
+                borrowedBy: user.name, returnDate, bookTitle, canProlong
+            }));
     } finally {
         if (!DEBUG) {
             await browser.close();
@@ -92,7 +100,7 @@ async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
 }
 
 function bookToString(book: BorrowedBook) {
-    return `[${book.borrowedBy}] ${book.returnDate.toLocaleDateString()} ${book.bookTitle}`;
+    return `[${book.borrowedBy}] ${book.returnDate.toLocaleDateString()} ${book.bookTitle}${book.canProlong ? '' : ' 🔒'}`;
 }
 
 (async () => {
