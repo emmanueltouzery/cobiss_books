@@ -2,7 +2,7 @@ import * as nodeMailer from 'nodemailer';
 
 import _config from "../config.json";
 import puppeteer from 'puppeteer';
-import { Vector } from "prelude-ts";
+import { Vector, Future } from "prelude-ts";
 
 const DEBUG = false;
 const WARN_IF_MUST_RETURN_DAYS = 7;
@@ -106,8 +106,10 @@ function bookToString(book: BorrowedBook) {
 (async () => {
     try {
         console.log(new Date());
-        const books = await Promise.all(config.cobissCredentials.map(fetchBooks))
-            .then(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
+        const books = await Future.traverse(
+            config.cobissCredentials,
+            Future.lift(fetchBooks), {maxConcurrent:1})
+            .map(b => Vector.ofIterable(b).flatMap(Vector.ofIterable));
         books.map(bookToString).map(console.info);
         const booksToReturn = books.filter(b => (b.returnDate.getTime() - new Date().getTime() <= WARN_IF_MUST_RETURN_DAYS*24*3600*1000));
         if (booksToReturn.length() > 0) {
