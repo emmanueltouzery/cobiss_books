@@ -58,15 +58,17 @@ async function fetchBooks(user: CobissUserInfo): Promise<Vector<BorrowedBook>> {
 
         await page.click('input#wp-submit1');
 
-        await page.waitForSelector("table#myLibs")
+        await page.waitForSelector("div#memberships-cards")
+        await page.click('div#memberships-cards a:nth-of-type(1)');
 
-        const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('table#myLibs tr td:nth-of-type(5) a')!.innerHTML));
+        await page.waitForSelector("span.badge")
+
+        const borrowedCount = await page.evaluate(() => parseInt(document.querySelector('span.badge:nth-of-type(1) strong')!.innerHTML));
         console.log(`${user.name} borrowed ${borrowedCount}`)
 
         if (borrowedCount === 0) {
             return Vector.empty();
         }
-        await page.click("table#myLibs td a")
 
         await page.waitForSelector("tbody#extLoanStuleBody");
 
